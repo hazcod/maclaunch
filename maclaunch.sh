@@ -49,20 +49,24 @@ function listItems {
             if [[ $f =~ \.disabled$ ]]; then
                 load_items=("${GREEN}${BOLD}disabled")
             else
-                if echo "$content" | grep -q 'OnDemand'; then
-                	load_items+=("${GREEN}OnDemand")
-                fi
-                if echo "$content" | grep -q 'RunAtLoad'; then
-                	load_items+=("${RED}OnStartup")
-                fi
-                if echo "$content" | grep -q 'KeepAlive'; then
-                	load_items+=("${RED}Always")
-                fi
-                if echo "$content" | grep -q 'StartOnMount'; then
-                	load_items+=("${YELLOW}OnFilesystemMount")
-                fi
-                if echo "$content" | grep -q 'StartInterval'; then
-                	load_items+=("${RED}Periodically")
+                if echo "$content" | awk '/Disabled<\/key>/{ getline; if ($0 ~ /<true\/>/) { f = 1; exit } } END {exit(!f)}'; then
+                    load_items+=("${GREEN}Disabled")
+                else
+                    if echo "$content" | grep -q 'OnDemand'; then
+                    	load_items+=("${GREEN}OnDemand")
+                    fi
+                    if echo "$content" | grep -q 'RunAtLoad'; then
+                    	load_items+=("${RED}OnStartup")
+                    fi
+                    if echo "$content" | grep -q 'KeepAlive'; then
+                    	load_items+=("${RED}Always")
+                    fi
+                    if echo "$content" | grep -q 'StartOnMount'; then
+                    	load_items+=("${YELLOW}OnFilesystemMount")
+                    fi
+                    if echo "$content" | grep -q 'StartInterval'; then
+                    	load_items+=("${RED}Periodically")
+                    fi
                 fi
             fi
 
