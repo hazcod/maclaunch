@@ -5,3 +5,5 @@ Example usage
 -------------
 
 `Usage: maclaunch <list|disable|enable> (item name)`
+
+![Example output](https://i.imgur.com/VhHTJXJ.png)
