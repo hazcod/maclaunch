@@ -50,7 +50,7 @@ function listItems {
                 load_items=("${GREEN}${BOLD}disabled")
             else
                 if echo "$content" | awk '/Disabled<\/key>/{ getline; if ($0 ~ /<true\/>/) { f = 1; exit } } END {exit(!f)}'; then
-                    load_items+=("${GREEN}Disabled")
+                    load_items+=("${GREEN}Disabled(LaunchCtl)")
                 else
                     if echo "$content" | grep -q 'OnDemand'; then
                     	load_items+=("${GREEN}OnDemand")
