@@ -114,22 +114,25 @@ function disableItem {
 }
 
 
-if [ $# -lt 1 ]; then
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     usage
 fi
 
 case "$1" in
     "list")
+        if [ $# -ne 1 ]; then
+            usage
+        fi
         listItems
     ;;
     "disable")
-        if [ -z $2 ]; then
+        if [ $# -ne 2 ]; then
             usage
         fi
         disableItem "$2"
     ;;
     "enable")
-        if [ -z $2 ]; then
+        if [ $# -ne 2 ]; then
             usage
         fi
         enableItem "$2"
