@@ -89,7 +89,11 @@ function enableItem {
     local disabledFile="${startupFile}.disabled"
 
     if [ ! -f "$disabledFile" ]; then
-        error "This item is not disabled${NC}"
+        if [ -f "$startupFile" ]; then
+            error "This item is not disabled${NC}"
+        else
+            error "$1 does not exist"
+        fi
     fi
 
     if mv "$disabledFile" "$startupFile"; then
@@ -103,7 +107,11 @@ function disableItem {
     local startupFile=$(findStartupPath "$1")
     
     if [ ! -f "$startupFile" ]; then
-        error "This item is already disabled${NC}"
+        if [ -f "${startupFile}.disabled" ]; then
+            error "This item is already disabled${NC}"
+        else
+            error "$1 does not exist"
+        fi
     fi
 
     if mv "$startupFile" "${startupFile}.disabled"; then
