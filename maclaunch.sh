@@ -42,6 +42,13 @@ function listItems {
     for dir in ${startup_dirs[@]}; do
         for f in $(find "${dir}" -name "*.plist" -type f -o -name "*.plist.disabled"); do
 
+            # convert plist to XML if it is binary
+            if ! grep -qI . "$f"; then
+                if ! plutil -convert xml1 "$f"; then
+                    error "Could not convert file. Maybe run with sudo?"
+                fi
+            fi
+
             local content=$(cat "$f")
             local startup_name=$(echo "$content" | grep -C1 '<key>Label</key>' | tail -1 | cut -d '>' -f 2 | cut -d '<' -f 1)
 
