@@ -49,6 +49,8 @@ function listItems {
                 fi
             fi
 
+            type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
+
             local content=$(cat "$f")
             local startup_name=$(echo "$content" | grep -C1 '<key>Label</key>' | tail -1 | cut -d '>' -f 2 | cut -d '<' -f 1)
 
@@ -57,7 +59,7 @@ function listItems {
                 load_items=("${GREEN}${BOLD}disabled")
             else
                 if echo "$content" | awk '/Disabled<\/key>/{ getline; if ($0 ~ /<true\/>/) { f = 1; exit } } END {exit(!f)}'; then
-                    load_items+=("${GREEN}Disabled(LaunchCtl)")
+                    load_items+=("${GREEN}disabled")
                 else
                     if echo "$content" | grep -q 'OnDemand'; then
                     	load_items+=("${GREEN}OnDemand")
@@ -84,8 +86,9 @@ function listItems {
             fi
 
             echo -e "${BOLD}> ${startup_name}${NC}"
+            echo    "  Type  : ${type}"
             echo -e "  Launch: ${load_str}${NC}"
-            echo "  $f"
+            echo    "  File  : $f"
 
         done
     done
