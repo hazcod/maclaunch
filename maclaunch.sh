@@ -24,9 +24,11 @@ function error {
 }
 
 function findStartupPath {
-    local name="$1"
-    local found=""
-    for path in ${startup_dirs[@]}; do
+    local name
+    local found
+    name="$1"
+    found=""
+    for path in "${startup_dirs[@]}"; do
         if [ -f "${path}/${name}.plist" ] || [ -f "${path}/${name}.plist.disabled" ]; then
             if [ ! -z "$found" ]; then
                 error "${name}.plist exists in multiple startup directories"
@@ -39,8 +41,8 @@ function findStartupPath {
 }
 
 function listItems {
-    for dir in ${startup_dirs[@]}; do
-        for f in $(find "${dir}" -name "*.plist" -type f -o -name "*.plist.disabled"); do
+    for dir in "${startup_dirs[@]}"; do
+        for f in $(find "${dir}" -name '*.plist' -type f -o -name "*.plist.disabled"); do
 
             # convert plist to XML if it is binary
             if ! grep -qI . "$f"; then
@@ -51,8 +53,8 @@ function listItems {
 
             type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
 
-            local content=$(cat "$f")
-            local startup_name=$(echo "$content" | grep -C1 '<key>Label</key>' | tail -1 | cut -d '>' -f 2 | cut -d '<' -f 1)
+            content=$(cat "$f")
+            startup_name=$(echo "$content" | grep -C1 '<key>Label</key>' | tail -1 | cut -d '>' -f 2 | cut -d '<' -f 1)
 
             local load_items=()
             if [[ $f =~ \.disabled$ ]]; then
@@ -62,19 +64,19 @@ function listItems {
                     load_items+=("${GREEN}disabled")
                 else
                     if echo "$content" | grep -q 'OnDemand'; then
-                    	load_items+=("${GREEN}OnDemand")
+                        load_items+=("${GREEN}OnDemand")
                     fi
                     if echo "$content" | grep -q 'RunAtLoad'; then
-                    	load_items+=("${RED}OnStartup")
+                        load_items+=("${RED}OnStartup")
                     fi
                     if echo "$content" | grep -q 'KeepAlive'; then
-                    	load_items+=("${RED}Always")
+                        load_items+=("${RED}Always")
                     fi
                     if echo "$content" | grep -q 'StartOnMount'; then
-                    	load_items+=("${YELLOW}OnFilesystemMount")
+                        load_items+=("${YELLOW}OnFilesystemMount")
                     fi
                     if echo "$content" | grep -q 'StartInterval'; then
-                    	load_items+=("${RED}Periodically")
+                        load_items+=("${RED}Periodically")
                     fi
                 fi
             fi
@@ -82,7 +84,7 @@ function listItems {
             if [ ${#load_items[@]} == 0 ]; then
                 load_str="${YELLOW}Unknown"
             else
-                load_str=$(join_by ',' ${load_items[@]})
+                load_str=$(join_by ',' "${load_items[@]}")
             fi
 
             echo -e "${BOLD}> ${startup_name}${NC}"
@@ -95,8 +97,8 @@ function listItems {
 }
 
 function enableItem {
-    local startupFile=$(findStartupPath "$1")
-    local disabledFile="${startupFile}.disabled"
+    startupFile=$(findStartupPath "$1")
+    disabledFile="${startupFile}.disabled"
 
     if [ ! -f "$disabledFile" ]; then
         if [ -f "$startupFile" ]; then
@@ -114,7 +116,7 @@ function enableItem {
 }
 
 function disableItem {
-    local startupFile=$(findStartupPath "$1")
+    startupFile=$(findStartupPath "$1")
     
     if [ ! -f "$startupFile" ]; then
         if [ -f "${startupFile}.disabled" ]; then
