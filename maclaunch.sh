@@ -53,6 +53,11 @@ function listItems {
 
     # regular startup directories
     for dir in "${startup_dirs[@]}"; do
+
+        if [ ! -d "$dir" ]; then
+            continue
+        fi
+
         for f in $(find "${dir}" -name '*.plist' -type f -o -name "*.plist.disabled"); do
 
             # convert plist to XML if it is binary
