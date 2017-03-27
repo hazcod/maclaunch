@@ -124,7 +124,7 @@ function enableItem {
         fi
     fi
 
-    if mv "$disabledFile" "$startupFile"; then
+    if mv "$disabledFile" "$startupFile" && [ -f "$startupFile" ]; then
         echo -e "${GREEN}Enabled ${STRONG}$1${NC}"
     else
         error "Could not enable ${STRONG}$1${NC}"
@@ -142,7 +142,7 @@ function disableItem {
         fi
     fi
 
-    if mv "$startupFile" "${startupFile}.disabled"; then
+    if mv "$startupFile" "${startupFile}.disabled" && [ -f "${startupFile}.disabled" ]; then
         echo -e "${GREEN}Disabled ${STRONG}$1${NC}"
     else
         error "Could not disable ${STRONG}$1${NC}"
