@@ -3,7 +3,7 @@
 #set -e
 #set -x
 
-startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons)
+startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons)
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -19,7 +19,7 @@ function usage {
 }
 
 function error {
-    echo -e "${RED}ERROR:${N} $1"
+    echo -e "${RED}ERROR:${N} ${1}${NC}"
     exit 1
 }
 
