@@ -70,7 +70,7 @@ function listItems {
             type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
 
             content=$(cat "$f")
-            startup_name=$(echo "$content" | grep -C1 '<key>Label</key>' | tail -1 | cut -d '>' -f 2 | cut -d '<' -f 1)
+            startup_name=$(basename "$f" | sed -E 's/\.plist(\.disabled)*$//')
 
             local load_items=()
             if [[ $f =~ \.disabled$ ]]; then
