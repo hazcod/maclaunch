@@ -41,6 +41,17 @@ function findStartupPath {
 }
 
 function listItems {
+    # login hooks
+    loginhooks=$(defaults read com.apple.loginwindow LoginHook 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        echo -e "${RED}${BOLD}Warning: you have Login Hooks!${NC}"
+        echo -e "${RED}Remove them (with sudo) from /var/root/Library/Preferences/com.apple.loginwindow"
+        echo -e "${loginhooks}${NC}"
+        echo
+        echo
+    fi
+
+    # regular startup directories
     for dir in "${startup_dirs[@]}"; do
         for f in $(find "${dir}" -name '*.plist' -type f -o -name "*.plist.disabled"); do
 
