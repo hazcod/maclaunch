@@ -102,7 +102,7 @@ function enableItem {
 
     if [ ! -f "$disabledFile" ]; then
         if [ -f "$startupFile" ]; then
-            error "This item is not disabled${NC}"
+            error "This item is already enabled${NC}"
         else
             error "$1 does not exist"
         fi
