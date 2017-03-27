@@ -14,7 +14,7 @@ BOLD='\033[1m'
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
 function usage {
-    echo "Usage: maclaunch <list|disable|enable> (item name)"
+    echo "Usage: $0 <list|disable|enable> (item name)"
     exit 1
 }
 
