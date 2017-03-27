@@ -4,6 +4,9 @@
 #set -x
 
 startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons)
+system_dirs=(/System/Library/LaunchAgents /System/Library/LaunchDaemons)
+
+temp_dir="/tmp/maclaunch"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,7 +17,7 @@ BOLD='\033[1m'
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
 function usage {
-    echo "Usage: $0 <list|disable|enable> (item name)"
+    echo "Usage: $0 <list|disable|enable> (item name|system)"
     exit 1
 }
 
@@ -40,7 +43,18 @@ function findStartupPath {
     echo "$found"
 }
 
+function isSystem {
+    [[ $1 == /System/* ]]
+}
+
 function listItems {
+    itemDirectories=("${startup_dirs[@]}")
+
+    # add system dirs if necessary
+    if [ "$2" == "system" ]; then
+        itemDirectories=("${itemDirectories[@]}" "${system_dirs[@]}")
+    fi
+
     # login hooks
     loginhooks=$(defaults read com.apple.loginwindow LoginHook 2>/dev/null)
     if [ $? -eq 0 ]; then
@@ -52,7 +66,7 @@ function listItems {
     fi
 
     # regular startup directories
-    for dir in "${startup_dirs[@]}"; do
+    for dir in "${itemDirectories[@]}"; do
 
         if [ ! -d "$dir" ]; then
             continue
@@ -60,20 +74,29 @@ function listItems {
 
         for f in $(find "${dir}" -name '*.plist' -type f -o -name "*.plist.disabled"); do
 
+            convertedFile="$f"
+
             # convert plist to XML if it is binary
             if ! grep -qI . "$f"; then
-                if ! plutil -convert xml1 "$f"; then
+
+                if isSystem "$f"; then
+                    mkdir -p "$temp_dir"
+                    convertedFile="${temp_dir}/$( basename "$f" )"
+                    cp "$f" "$convertedFile"
+                fi
+
+                if ! plutil -convert xml1 "${convertedFile}"; then
                     error "Could not convert file. Maybe run with sudo?"
                 fi
             fi
 
-            type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
+            type="system" ; [[ "$convertedFile" =~ .*LaunchAgents.* ]] && type="user"
 
-            content=$(cat "$f")
-            startup_name=$(basename "$f" | sed -E 's/\.plist(\.disabled)*$//')
+            content=$(cat "$convertedFile")
+            startup_name=$(basename "$convertedFile" | sed -E 's/\.plist(\.disabled)*$//')
 
             local load_items=()
-            if [[ $f =~ \.disabled$ ]]; then
+            if [[ $convertedFile =~ \.disabled$ ]]; then
                 load_items=("${GREEN}${BOLD}disabled")
             else
                 if echo "$content" | awk '/Disabled<\/key>/{ getline; if ($0 ~ /<true\/>/) { f = 1; exit } } END {exit(!f)}'; then
@@ -103,13 +126,22 @@ function listItems {
                 load_str=$(join_by ',' "${load_items[@]}")
             fi
 
-            echo -e "${BOLD}> ${startup_name}${NC}"
+            if isSystem "$f"; then
+                startup_type=" (core)"
+            fi
+
+            echo -e "${BOLD}> ${startup_name}${NC}${startup_type}"
             echo    "  Type  : ${type}"
             echo -e "  Launch: ${load_str}${NC}"
             echo    "  File  : $f"
 
         done
     done
+
+    # cleanup converted system files
+    if [ -d "$temp_dir" ]; then
+        rm -r "$temp_dir/"
+    fi
 }
 
 function enableItem {
@@ -157,9 +189,11 @@ fi
 case "$1" in
     "list")
         if [ $# -ne 1 ]; then
-            usage
+            if [ $# -ne 2 ] || [ "$2" != "system" ]; then
+                usage
+            fi
         fi
-        listItems
+        listItems "$1" "$2"
     ;;
     "disable")
         if [ $# -ne 2 ]; then
