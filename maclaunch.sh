@@ -73,9 +73,15 @@ function listItems {
 
         while IFS= read -r -d '' f; do
 
+            # check if file is readable
+            if ! [ -r "$f" ]; then
+                echo -e "\nSkipping unreadable file: $f\n"
+                continue
+            fi
+
             # convert plist to XML if it is binary
             if ! content=$(plutil -convert xml1 "${f}" -o -); then
-                echo "\nSkipping unreadable file: $f\n"
+                error "Unparseable file: $f"
             fi
 
             type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
@@ -103,6 +109,12 @@ function listItems {
                     fi
                     if echo "$content" | grep -q 'StartInterval'; then
                         load_items+=("${RED}Periodically")
+                    fi
+                    if echo "$content" | grep -q "MachServices"; then
+                        load_items+=("${RED}MachService")
+                    fi
+                    if echo "$content" | grep -q "WatchPaths"; then
+                        load_items+=("${YELLOW}WatchPaths")
                     fi
                 fi
             fi
