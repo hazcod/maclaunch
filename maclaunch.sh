@@ -56,8 +56,7 @@ function listItems {
     fi
 
     # login hooks
-    loginhooks=$(defaults read com.apple.loginwindow LoginHook 2>/dev/null)
-    if [ $? -eq 0 ]; then
+    if loginhooks=$(defaults read com.apple.loginwindow LoginHook 2>/dev/null); then
         echo -e "${RED}${BOLD}Warning: you have Login Hooks!${NC}"
         echo -e "${RED}Remove them (with sudo) from /var/root/Library/Preferences/com.apple.loginwindow"
         echo -e "${loginhooks}${NC}"
@@ -72,31 +71,19 @@ function listItems {
             continue
         fi
 
-        for f in $(find "${dir}" -name '*.plist' -type f -o -name "*.plist.disabled"); do
-
-            convertedFile="$f"
+        while IFS= read -r -d '' f; do
 
             # convert plist to XML if it is binary
-            if ! grep -qI . "$f"; then
-
-                if isSystem "$f"; then
-                    mkdir -p "$temp_dir"
-                    convertedFile="${temp_dir}/$( basename "$f" )"
-                    cp "$f" "$convertedFile"
-                fi
-
-                if ! plutil -convert xml1 "${convertedFile}"; then
-                    error "Could not convert file. Maybe run with sudo?"
-                fi
+            if ! content=$(plutil -convert xml1 "${f}" -o -); then
+                echo "\nSkipping unreadable file: $f\n"
             fi
 
-            type="system" ; [[ "$convertedFile" =~ .*LaunchAgents.* ]] && type="user"
+            type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
 
-            content=$(cat "$convertedFile")
-            startup_name=$(basename "$convertedFile" | sed -E 's/\.plist(\.disabled)*$//')
+            startup_name=$(basename "$f" | sed -E 's/\.plist(\.disabled)*$//')
 
             local load_items=()
-            if [[ $convertedFile =~ \.disabled$ ]]; then
+            if [[ $f =~ \.disabled$ ]]; then
                 load_items=("${GREEN}${BOLD}disabled")
             else
                 if echo "$content" | awk '/Disabled<\/key>/{ getline; if ($0 ~ /<true\/>/) { f = 1; exit } } END {exit(!f)}'; then
@@ -135,12 +122,12 @@ function listItems {
             echo -e "  Launch: ${load_str}${NC}"
             echo    "  File  : $f"
 
-        done
+        done < <(find "${dir}" -name '*.plist*' -type f -print0)
     done
 
     # cleanup converted system files
     if [ -d "$temp_dir" ]; then
-        rm -r "$temp_dir/"
+        rm -r "${temp_dir:?}/"
     fi
 }
 
