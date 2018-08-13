@@ -6,8 +6,6 @@
 startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons)
 system_dirs=(/System/Library/LaunchAgents /System/Library/LaunchDaemons)
 
-temp_dir="/tmp/maclaunch"
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -136,11 +134,6 @@ function listItems {
 
         done < <(find "${dir}" -name '*.plist*' -type f -print0)
     done
-
-    # cleanup converted system files
-    if [ -d "$temp_dir" ]; then
-        rm -r "${temp_dir:?}/"
-    fi
 }
 
 function enableItem {
