@@ -31,7 +31,7 @@ function findStartupPath {
     found=""
     for path in "${startup_dirs[@]}"; do
         if [ -f "${path}/${name}.plist" ] || [ -f "${path}/${name}.plist.disabled" ]; then
-            if [ ! -z "$found" ]; then
+            if [ -n "$found" ]; then
                 error "${name}.plist exists in multiple startup directories"
             fi
             found="${path}/${name}.plist"
