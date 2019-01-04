@@ -7,6 +7,10 @@ Lists plist files in LaunchAgents and LaunchDaemons folders.
 When disabling an item, it moves it to .disabled so launchctl does not read them anymore.
 It does **not** alter the contents in any way. It does not support JSON plists (for now).
 
+Installation
+-------------
+Installation is preferred via my Homebrew tap: `brew tap hazcod/homebrew-hazcod && brew install maclaunch`.
+
 Usage
 -------------
 
