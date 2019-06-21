@@ -9,7 +9,7 @@ It does **not** alter the contents in any way. It does not support JSON plists (
 
 Installation
 -------------
-Installation is preferred via [my Homebrew tap](https://github.com/hazcod/homebrew-hazcod): `brew tap hazcod/homebrew-hazcod && brew install maclaunch`.
+Installation can be done straight from [my Homebrew tap](https://github.com/hazcod/homebrew-hazcod): `brew install hazcod/homebrew-hazcod/maclaunch`.
 
 Usage
 -------------
