@@ -45,6 +45,22 @@ function isSystem {
     [[ $1 == /System/* ]]
 }
 
+function getScriptUser {
+    local scriptPath="$1"
+
+    if echo "$scriptPath" | grep -q "LaunchAgent"; then
+        whoami
+        return
+    fi
+
+    if ! grep -q '<key>UserName</key>' "$scriptPath"; then
+        echo "root"
+        return
+    fi
+
+    echo "custom"
+}
+
 function listItems {
     itemDirectories=("${startup_dirs[@]}")
 
@@ -127,8 +143,16 @@ function listItems {
                 startup_type=" (core)"
             fi
 
+            runAsUser="$(getScriptUser "$f")"
+            if [ "$runAsUser" = "root" ]; then
+                runAsUser="${RED}root${NC}"
+            elif [ "$runAsUser" = "custom" ]; then
+                runAsUser="${YELLOW}custom${NC}"
+            fi
+
             echo -e "${BOLD}> ${startup_name}${NC}${startup_type}"
             echo    "  Type  : ${type}"
+            echo -e "  User  : ${runAsUser}"
             echo -e "  Launch: ${load_str}${NC}"
             echo    "  File  : $f"
 
