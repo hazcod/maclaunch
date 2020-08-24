@@ -47,6 +47,10 @@ Installation can be done straight from [my Homebrew tap](https://github.com/hazc
 
 To list all your services: `maclaunch list`
 
+To list all enabled services: `maclaunch list enabled`
+
+To list all disabled services: `maclaunch list disabled`
+
 To list all your services including system services: `maclaunch list system`
 
 To list all microsoft services: `maclaunch list microsoft`
