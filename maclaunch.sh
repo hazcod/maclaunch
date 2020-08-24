@@ -26,24 +26,6 @@ function error {
     exit 1
 }
 
-function findStartupPath {
-    local name="$1"
-
-    # try to find out where the plist resides
-    paths=()
-    while IFS=  read -r -d $'\0'; do
-        paths+=("$REPLY")
-    done < <(find "${startup_dirs[@]}" "${system_dirs[@]}" \( -iname "${name}.plist" -o -iname "${name}.plist.disabled" \) -print0 2>/dev/null)
-
-    # if the plist has the same name in multiple directories, error out
-    # we might want to revert to maclaunch dump-state, but that's very resource expensive
-    #if [ ${#paths[@]} -gt 1 ]; then
-    #    error "Multiple paths for '$name':\n${paths[*]}"
-    #fi
-
-    echo "${paths[0]}"
-}
-
 function isSystem {
     # if it's in /System, it's part of the (protected) system partition
     [[ $1 == /System/* ]]
@@ -204,63 +186,73 @@ function listItems {
     done< <(find "${itemDirectories[@]}" -type f -iname '*.plist*' -print0 2>/dev/null)
 }
 
-function enableItem {
-    # find out where it's stored
-    startupFile=$(findStartupPath "$1")
+function enableItems {
+    disabled_items="$(launchctl print-disabled user/"$(id -u)")"
 
-    # error out if we didn't find a plist
-    if [ -z "$startupFile" ]; then
-        error "Could not find plist for $1"
-    fi
+    while IFS= read -r -d '' startupFile; do
 
-    # fix legacy .disabled behavior
-    startupFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//')"
-    disabledFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//').disabled"
-    if [ -f "$disabledFile" ] && ! mv "$disabledFile" "$startupFile"; then
-        error "could not move '$startupFile' to '$disabledFile'. Try to run with sudo?"
-    fi
+        # error out if we didn't find a plist
+        if [ -z "$startupFile" ]; then
+            error "Could not read $1"
+        fi
 
-    # check if it's disabled
-    if ! launchctl print-disabled user/"$(id -u)" | grep -qi "$1" | grep true; then
-        error "This item is already enabled"
-    fi
+        # fix legacy .disabled behavior
+        startupFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//')"
+        disabledFile="${startupFile}.disabled"
+        if [ -f "$disabledFile" ] && ! mv "$disabledFile" "$startupFile"; then
+            error "could not move '$startupFile' to '$disabledFile'. Try to run with sudo?"
+        fi
 
-    # try to enable it
-    if ! launchctl disable user/"$(id -u)"/"$1"; then
-        error "Could not enable ${STRONG}$1${NC}"
-    fi
+        name="$(basename "$startupFile" | sed -E 's/\.plist(\.disabled)*$//')"
 
-    echo -e "${GREEN}Enabled ${STRONG}$1${NC}"
+        # check if it's disabled
+        if ! echo "$disabled_items" | grep -iF "$name" | grep -q true; then
+            error "$name is already enabled"
+        fi
+
+        # try to enable it
+        if ! launchctl enable user/"$(id -u)"/"${name}"; then
+            error "Could not enable ${STRONG}$name${NC}"
+        fi
+
+        echo -e "${GREEN}Enabled ${STRONG}${name}${NC}"
+
+    done< <(find "${startup_dirs[@]}" "${system_dirs[@]}" \( -iname "*$1*.plist" -o -iname "*$1*.plist.disabled" \) -print0 2>/dev/null)
 }
 
-function disableItem {
-    startupFile="$(findStartupPath "$1")"
+function disableItems {
+    disabled_items="$(launchctl print-disabled user/"$(id -u)")"
 
-    # error out if we didn't find a plist
-    if [ -z "$startupFile" ]; then
-        error "Could not find plist for $1"
-    fi
-    
-    # fix legacy .disabled behavior
-    startupFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//')"
-    disabledFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//').disabled"
-    if [ -f "$disabledFile" ] && ! mv "$disabledFile" "$startupFile"; then
-        error "could not move '$startupFile' to '$disabledFile'. Try to run with sudo?"
-    fi
+    while IFS= read -r -d '' startupFile; do
 
-    # check if it's enabled
-    if launchctl print-disabled user/"$(id -u)" | grep -qi "$1" | grep true; then
-        error "This item is already disabled"
-    fi
+        # error out if we didn't find a plist
+        if [ -z "$startupFile" ]; then
+            error "Could not find plist for $1"
+        fi
+        
+        # fix legacy .disabled behavior
+        startupFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//')"
+        disabledFile="${startupFile}.disabled"
+        if [ -f "$disabledFile" ] && ! mv "$disabledFile" "$startupFile"; then
+            error "could not move '$startupFile' to '$disabledFile'. Try to run with sudo?"
+        fi
 
-    # try to disable it
-    if ! launchctl disable user/"$(id -u)"/"$1"; then
-        error "Could not disable ${STRONG}$1${NC}"
-    fi
+        name="$(basename "$startupFile" | sed -E 's/\.plist(\.disabled)*$//')"
 
-    echo -e "${GREEN}Disabled ${STRONG}$1${NC}"
+        # check if it's enabled
+        if echo "$disabled_items" | grep -iF "$name" | grep -q true; then
+            error "$name is already disabled"
+        fi
+
+        # try to disable it
+        if ! launchctl disable user/"$(id -u)"/"${name}"; then
+            error "Could not disable ${STRONG}$name${NC}"
+        fi
+
+        echo -e "${GREEN}Disabled ${STRONG}${name}${NC}"
+
+    done< <(find "${startup_dirs[@]}" "${system_dirs[@]}" \( -iname "*$1*.plist" -o -iname "*$1*.plist.disabled" \) -print0 2>/dev/null)
 }
-
 
 if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     usage
@@ -279,13 +271,13 @@ case "$1" in
         if [ $# -ne 2 ]; then
             usage
         fi
-        disableItem "$2"
+        disableItems "$2"
     ;;
     "enable")
         if [ $# -ne 2 ]; then
             usage
         fi
-        enableItem "$2"
+        enableItems "$2"
     ;;
     *)
         usage
