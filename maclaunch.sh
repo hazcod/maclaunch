@@ -69,14 +69,17 @@ function getScriptUser {
 }
 
 function listItems {
+    local filter="$2"
+
     itemDirectories=("${startup_dirs[@]}")
 
     # get disabled services
     disabled_services="$(launchctl print-disabled user/"$(id -u)")"
 
     # add system dirs too if we supplied the system parameter
-    if [ "$2" == "system" ]; then
+    if [ "$filter" == "system" ]; then
         itemDirectories=("${itemDirectories[@]}" "${system_dirs[@]}")
+        filter=""
     fi
 
     # login hooks
@@ -108,18 +111,41 @@ function listItems {
         # extract the service name
         startup_name="$(basename "$f" | sed -E 's/\.plist(\.disabled)*$//')"
 
+        if [ -n "$filter" ] && [ "$filter" != "enabled" ] && [ "$filter" != "disabled" ]; then
+            if [[ "$startup_name" != *"$filter"* ]]; then
+                continue
+            fi
+        fi
+
         local load_items=()
 
         # check for legacy behavior
         if [[ $f =~ \.disabled$ ]]; then
+            # skip it if we only want enabled items
+            if [ -n "$filter" ] && [ "$filter" == "enabled" ]; then
+                continue
+            fi
+
             load_items=("${GREEN}${BOLD}disabled${NC}${YELLOW} (legacy)")
 
         # check if it's disabled natively via launchctl
         elif echo "$disabled_services" | grep -iF "$startup_name" | grep -qi true; then
+            # skip it if we only want enabled items
+            if [ -n "$filter" ] && [ "$filter" == "enabled" ]; then
+                continue
+            fi
+
             load_items=("${GREEN}${BOLD}disabled")
         
         # if it's not disabled, list the startup triggers
         else
+            # skip it if we only want disabled items
+            if [ -n "$filter" ] && [ "$filter" == "disabled" ]; then
+                continue
+            fi
+
+            # ---
+
             if echo "$content" | grep -q 'OnDemand'; then
                 load_items+=("${GREEN}OnDemand")
             fi
@@ -243,7 +269,7 @@ fi
 case "$1" in
     "list")
         if [ $# -ne 1 ]; then
-            if [ $# -ne 2 ] || [ "$2" != "system" ]; then
+            if [ $# -ne 2 ]; then
                 usage
             fi
         fi
