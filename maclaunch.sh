@@ -15,56 +15,66 @@ BOLD='\033[1m'
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
 function usage {
+    # show command cli usage help
     echo "Usage: $0 <list|disable|enable> (item name|system)"
     exit 1
 }
 
 function error {
+    # show an error message and exit
     echo -e "${RED}ERROR:${N} ${1}${NC}"
     exit 1
 }
 
 function findStartupPath {
-    local name
-    local found
-    name="$1"
-    found=""
-    for path in "${startup_dirs[@]}"; do
-        if [ -f "${path}/${name}.plist" ] || [ -f "${path}/${name}.plist.disabled" ]; then
-            if [ -n "$found" ]; then
-                error "${name}.plist exists in multiple startup directories"
-            fi
-            found="${path}/${name}.plist"
-            break
-        fi
-    done
-    echo "$found"
+    local name="$1"
+
+    # try to find out where the plist resides
+    paths=()
+    while IFS=  read -r -d $'\0'; do
+        paths+=("$REPLY")
+    done < <(find "${startup_dirs[@]}" "${system_dirs[@]}" \( -iname "${name}.plist" -o -iname "${name}.plist.disabled" \) -print0 2>/dev/null)
+
+    # if the plist has the same name in multiple directories, error out
+    # we might want to revert to maclaunch dump-state, but that's very resource expensive
+    #if [ ${#paths[@]} -gt 1 ]; then
+    #    error "Multiple paths for '$name':\n${paths[*]}"
+    #fi
+
+    echo "${paths[0]}"
 }
 
 function isSystem {
+    # if it's in /System, it's part of the (protected) system partition
     [[ $1 == /System/* ]]
 }
 
 function getScriptUser {
     local scriptPath="$1"
 
+    # if it's in LaunchAgents, it's ran as the user
     if echo "$scriptPath" | grep -q "LaunchAgent"; then
         whoami
         return
     fi
 
+    # if there is no UserName key, it's ran as root
     if ! grep -q '<key>UserName</key>' "$scriptPath"; then
         echo "root"
         return
     fi
 
-    echo "custom"
+    # if UserName key is present, return the custom user
+    grep '<key>UserName</key>' -C1 "$scriptPath" | tail -n1 | cut -d '>' -f 2 | cut -d '<' -f 1
 }
 
 function listItems {
     itemDirectories=("${startup_dirs[@]}")
 
-    # add system dirs if necessary
+    # get disabled services
+    disabled_services="$(launchctl print-disabled user/"$(id -u)")"
+
+    # add system dirs too if we supplied the system parameter
     if [ "$2" == "system" ]; then
         itemDirectories=("${itemDirectories[@]}" "${system_dirs[@]}")
     fi
@@ -78,123 +88,151 @@ function listItems {
         echo
     fi
 
-    # regular startup directories
-    for dir in "${itemDirectories[@]}"; do
+    # for every plist found
+    while IFS= read -r -d '' f; do
 
-        if [ ! -d "$dir" ]; then
+        # check if file is readable
+        if ! [ -r "$f" ]; then
+            echo -e "\nSkipping unreadable file: $f\n"
             continue
         fi
+        
+        # convert plist to XML if it is binary
+        if ! content=$(plutil -convert xml1 "${f}" -o -); then
+            error "Unparseable file: $f"
+        fi
 
-        while IFS= read -r -d '' f; do
+        # detect the process type
+        type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
 
-            # check if file is readable
-            if ! [ -r "$f" ]; then
-                echo -e "\nSkipping unreadable file: $f\n"
-                continue
+        # extract the service name
+        startup_name="$(basename "$f" | sed -E 's/\.plist(\.disabled)*$//')"
+
+        local load_items=()
+
+        # check for legacy behavior
+        if [[ $f =~ \.disabled$ ]]; then
+            load_items=("${GREEN}${BOLD}disabled${NC}${YELLOW} (legacy)")
+
+        # check if it's disabled natively via launchctl
+        elif echo "$disabled_services" | grep -iF "$startup_name" | grep -qi true; then
+            load_items=("${GREEN}${BOLD}disabled")
+        
+        # if it's not disabled, list the startup triggers
+        else
+            if echo "$content" | grep -q 'OnDemand'; then
+                load_items+=("${GREEN}OnDemand")
             fi
 
-            # convert plist to XML if it is binary
-            if ! content=$(plutil -convert xml1 "${f}" -o -); then
-                error "Unparseable file: $f"
+            if echo "$content" | grep -q 'RunAtLoad'; then
+                load_items+=("${RED}OnStartup")
             fi
 
-            type="system" ; [[ "$f" =~ .*LaunchAgents.* ]] && type="user"
-
-            startup_name=$(basename "$f" | sed -E 's/\.plist(\.disabled)*$//')
-
-            local load_items=()
-            if [[ $f =~ \.disabled$ ]]; then
-                load_items=("${GREEN}${BOLD}disabled")
-            else
-                if echo "$content" | awk '/Disabled<\/key>/{ getline; if ($0 ~ /<true\/>/) { f = 1; exit } } END {exit(!f)}'; then
-                    load_items+=("${GREEN}disabled")
-                else
-                    if echo "$content" | grep -q 'OnDemand'; then
-                        load_items+=("${GREEN}OnDemand")
-                    fi
-                    if echo "$content" | grep -q 'RunAtLoad'; then
-                        load_items+=("${RED}OnStartup")
-                    fi
-                    if echo "$content" | grep -q 'KeepAlive'; then
-                        load_items+=("${RED}Always")
-                    fi
-                    if echo "$content" | grep -q 'StartOnMount'; then
-                        load_items+=("${YELLOW}OnFilesystemMount")
-                    fi
-                    if echo "$content" | grep -q 'StartInterval'; then
-                        load_items+=("${RED}Periodically")
-                    fi
-                    if echo "$content" | grep -q "MachServices"; then
-                        load_items+=("${RED}MachService")
-                    fi
-                    if echo "$content" | grep -q "WatchPaths"; then
-                        load_items+=("${YELLOW}WatchPaths")
-                    fi
-                fi
+            if echo "$content" | grep -q 'KeepAlive'; then
+                load_items+=("${RED}Always")
             fi
 
-            if [ ${#load_items[@]} == 0 ]; then
-                load_str="${YELLOW}Unknown"
-            else
-                load_str=$(join_by ',' "${load_items[@]}")
+            if echo "$content" | grep -q 'StartOnMount'; then
+                load_items+=("${YELLOW}OnFilesystemMount")
             fi
 
-            if isSystem "$f"; then
-                startup_type=" (core)"
+            if echo "$content" | grep -q 'StartInterval'; then
+                load_items+=("${RED}Periodically")
             fi
 
-            runAsUser="$(getScriptUser "$f")"
-            if [ "$runAsUser" = "root" ]; then
-                runAsUser="${RED}root${NC}"
-            elif [ "$runAsUser" = "custom" ]; then
-                runAsUser="${YELLOW}custom${NC}"
+            if echo "$content" | grep -q "MachServices"; then
+                load_items+=("${RED}MachService")
             fi
 
-            echo -e "${BOLD}> ${startup_name}${NC}${startup_type}"
-            echo    "  Type  : ${type}"
-            echo -e "  User  : ${runAsUser}"
-            echo -e "  Launch: ${load_str}${NC}"
-            echo    "  File  : $f"
+            if echo "$content" | grep -q "WatchPaths"; then
+                load_items+=("${YELLOW}WatchPaths")
+            fi
+        fi
 
-        done < <(find "${dir}" -name '*.plist*' -type f -print0)
-    done
+        # if we did not detect anything, something weird happened
+        if [ ${#load_items[@]} == 0 ]; then
+            load_str="${YELLOW}Unknown"
+        else
+            load_str=$(join_by ',' "${load_items[@]}")
+        fi
+
+        # set the type to core if it's a system process (e.g. protected by SIP)
+        if isSystem "$f"; then
+            startup_type=" (core)"
+        fi
+
+        # print what user this process is run as
+        runAsUser="$(getScriptUser "$f")"
+        if [ "$runAsUser" = "root" ]; then
+            runAsUser="${RED}root${NC}"
+        elif [ "$runAsUser" = "custom" ]; then
+            runAsUser="${YELLOW}custom${NC}"
+        fi
+
+        echo -e "${BOLD}> ${startup_name}${NC}${startup_type}"
+        echo    "  Type  : ${type}"
+        echo -e "  User  : ${runAsUser}"
+        echo -e "  Launch: ${load_str}${NC}"
+        echo    "  File  : $f"
+
+    done< <(find "${itemDirectories[@]}" -type f -iname '*.plist*' -print0 2>/dev/null)
 }
 
 function enableItem {
+    # find out where it's stored
     startupFile=$(findStartupPath "$1")
-    disabledFile="${startupFile}.disabled"
 
-    if [ ! -f "$disabledFile" ]; then
-        if [ -f "$startupFile" ]; then
-            error "This item is already enabled${NC}"
-        else
-            error "$1 does not exist"
-        fi
+    # error out if we didn't find a plist
+    if [ -z "$startupFile" ]; then
+        error "Could not find plist for $1"
     fi
 
-    if mv "$disabledFile" "$startupFile" && [ -f "$startupFile" ]; then
-        echo -e "${GREEN}Enabled ${STRONG}$1${NC}"
-    else
+    # fix legacy .disabled behavior
+    startupFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//')"
+    disabledFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//').disabled"
+    if [ -f "$disabledFile" ] && ! mv "$disabledFile" "$startupFile"; then
+        error "could not move '$startupFile' to '$disabledFile'. Try to run with sudo?"
+    fi
+
+    # check if it's disabled
+    if ! launchctl print-disabled user/"$(id -u)" | grep -qi "$1" | grep true; then
+        error "This item is already enabled"
+    fi
+
+    # try to enable it
+    if ! launchctl disable user/"$(id -u)"/"$1"; then
         error "Could not enable ${STRONG}$1${NC}"
     fi
+
+    echo -e "${GREEN}Enabled ${STRONG}$1${NC}"
 }
 
 function disableItem {
-    startupFile=$(findStartupPath "$1")
+    startupFile="$(findStartupPath "$1")"
+
+    # error out if we didn't find a plist
+    if [ -z "$startupFile" ]; then
+        error "Could not find plist for $1"
+    fi
     
-    if [ ! -f "$startupFile" ]; then
-        if [ -f "${startupFile}.disabled" ]; then
-            error "This item is already disabled${NC}"
-        else
-            error "$1 does not exist"
-        fi
+    # fix legacy .disabled behavior
+    startupFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//')"
+    disabledFile="$(echo "$startupFile" | sed -E 's/(\.disabled)$//').disabled"
+    if [ -f "$disabledFile" ] && ! mv "$disabledFile" "$startupFile"; then
+        error "could not move '$startupFile' to '$disabledFile'. Try to run with sudo?"
     fi
 
-    if mv "$startupFile" "${startupFile}.disabled" && [ -f "${startupFile}.disabled" ]; then
-        echo -e "${GREEN}Disabled ${STRONG}$1${NC}"
-    else
+    # check if it's enabled
+    if launchctl print-disabled user/"$(id -u)" | grep -qi "$1" | grep true; then
+        error "This item is already disabled"
+    fi
+
+    # try to disable it
+    if ! launchctl disable user/"$(id -u)"/"$1"; then
         error "Could not disable ${STRONG}$1${NC}"
-    fi 
+    fi
+
+    echo -e "${GREEN}Disabled ${STRONG}$1${NC}"
 }
 
 
