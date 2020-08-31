@@ -6,7 +6,7 @@ Lists and controls your macOS startup items and their startup policy.
 Take back control of your macOS system!
 
 ```shell
-% maclaunch.sh list microsoft
+% maclaunch list microsoft
 > com.microsoft.update.agent
   Type  : user
   User  : hazcod
