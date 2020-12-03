@@ -1,7 +1,7 @@
 
 # maclaunch
 
-Lists and controls your macOS startup items and their startup policy.
+Lists and controls all your macOS startup items and their startup policy.
 
 Take back control of your macOS system!
 
@@ -31,8 +31,13 @@ Take back control of your macOS system!
 
 ## How does it work?
 
-Lists XML/json/binary plist files in LaunchAgents and LaunchDaemons folders which are loaded by launchctl.
-When disabling an item, it uses launchctl to natively stop loading that service.
+maclaunch will list 3 distinct types of entries on your macOS system that can be persistently installed:
+
+1. Configuration files for LaunchAgents and LaunchDaemons which are loaded by launchctl.
+2. Kernel extensions loaded in the kernel.
+3. System extensions loaded in userspace.
+
+When disabling an item, it uses `launchctl`, `kextutil` or `systemextensionsctl` to natively stop loading that service.
 It does **not** alter the contents in any way or moves the file, so it should work with practically any service.
 
 The name you provide can either be specific to that service or function as a filter to work on multiple services simultaneously.

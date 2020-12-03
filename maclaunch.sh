@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-#set -e
-#set -x
-
 startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons)
 system_dirs=(/System/Library/LaunchAgents /System/Library/LaunchDaemons)
 
@@ -11,6 +8,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 BOLD='\033[1m'
+
+#
+#--------------------------------------------------------------------------------------------------------------------------------------
+#
 
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
@@ -59,7 +60,7 @@ function listKernelExtensions {
 
     getKernelExtensions | while IFS= read -r kextLine; do
 
-        kextLoaded=$(echo "$kextLine" | cut -d ' ' -f 3)
+        kextLoaded="$(echo "$kextLine" | cut -d ' ' -f 3)"
         kextName="$(echo "$kextLine" | cut -d ' ' -f 7)"
         kextVersion="$(echo "$kextLine" | grep -o '\((.*)\)')"
 
@@ -98,6 +99,56 @@ function listKernelExtensions {
     done
 }
 
+function disableKernelExtensions {
+    local filter="$1"
+
+    getKernelExtensions | while IFS= read -r kextLine; do
+
+        kextLoaded="$(echo "$kextLine" | cut -d ' ' -f 3)"
+        kextName="$(echo "$kextLine" | cut -d ' ' -f 7)"
+        
+        if ! [[ "$kextName" =~ $filter ]]; then
+            continue
+        fi
+
+        if [ "$kextLoaded" == "0" ]; then
+            #error "kernel extension is already unloaded"
+            continue
+        fi
+
+        if ! kmutil load -b "$kextName" 1>/dev/null; then
+            error "could not disable kernel extension"
+        fi
+
+        echo -e "${GREEN}Disabled ${STRONG}${kextName}${NC}"
+    done
+}
+
+function enableKernelExtensions {
+    local filter="$1"
+
+    getKernelExtensions | while IFS= read -r kextLine; do
+
+        kextLoaded="$(echo "$kextLine" | cut -d ' ' -f 3)"
+        kextName="$(echo "$kextLine" | cut -d ' ' -f 7)"
+        
+        if ! [[ "$kextName" =~ $filter ]]; then
+            continue
+        fi
+
+        if ! [ "$kextLoaded" == "0" ]; then
+            #error "kernel extension is already loaded"
+            continue
+        fi
+
+        if ! kmutil unload -b "$kextName" 1>/dev/null; then
+            error "could not disable kernel extension"
+        fi
+
+        echo -e "${GREEN}Enabled ${STRONG}${kextName}${NC}"
+    done
+}
+
 function getSystemExtensions {
     systemextensionsctl list 2>/dev/null | tail -n+2 | grep -v '^---' | grep -v '^enabled' | tr -s ' '
 }
@@ -110,6 +161,10 @@ function listSystemExtensions {
         fullName="$(echo "$extLine" | cut -d$'\t' -f 4)"
         extName="$(echo "$fullName" | cut -d ' ' -f 1)"
         extVersion="$(echo "$fullName" | grep -o '\((.*)\)')"
+
+        if [ -n "$filter" ] && ! [[ "$extName" =~ $filter ]]; then
+            continue
+        fi
 
         local loaded
         if [ "$(echo "$extLine" | cut -d$'\t' -f 2)" == "*" ]; then
@@ -126,7 +181,52 @@ function listSystemExtensions {
     done
 }
 
-function listItems {
+function enableSystemExtensions {
+    local filter="$1"
+
+    getSystemExtensions | while IFS= read -r extLine; do
+
+        extName="$(echo "$extLine" | cut -d$'\t' -f 4 | cut -d ' ' -f 1)"
+
+        if ! [[ "$extName" =~ $filter ]]; then
+            continue
+        fi
+
+        if [ "$(echo "$extLine" | cut -d$'\t' -f 2)" == "*" ]; then
+            # error "this system extension is already enabled"
+            continue
+        fi
+
+        #TODO: implement load system extension via CLI
+        error "enabling system extensions is not yet implemented"
+    done
+}
+
+function disableSystemExtensions {
+    local filter="$1"
+
+    getSystemExtensions | while IFS= read -r extLine; do
+
+        extName="$(echo "$extLine" | cut -d$'\t' -f 4 | cut -d ' ' -f 1)"
+
+        if ! [[ "$extName" =~ $filter ]]; then
+            continue
+        fi
+
+        if ! [ "$(echo "$extLine" | cut -d$'\t' -f 2)" == "*" ]; then
+            # error "this system extension is already disabled"
+            continue
+        fi
+
+        if ! systemextensionsctl uninstall '-' "$extName"; then
+            error "could not disable system extension"
+        fi
+
+        echo -e "${GREEN}Enabled ${STRONG}${extName}${NC}"
+    done
+}
+
+function listLaunchItems {
     local filter="$2"
 
     itemDirectories=("${startup_dirs[@]}")
@@ -262,7 +362,7 @@ function listItems {
     done< <(find "${itemDirectories[@]}" -type f -iname '*.plist*' -print0 2>/dev/null)
 }
 
-function enableItems {
+function enableLaunchItems {
     disabled_items="$(launchctl print-disabled user/"$(id -u)")"
 
     while IFS= read -r -d '' startupFile; do
@@ -296,7 +396,7 @@ function enableItems {
     done< <(find "${startup_dirs[@]}" "${system_dirs[@]}" \( -iname "*$1*.plist" -o -iname "*$1*.plist.disabled" \) -print0 2>/dev/null)
 }
 
-function disableItems {
+function disableLaunchItems {
     disabled_items="$(launchctl print-disabled user/"$(id -u)")"
 
     while IFS= read -r -d '' startupFile; do
@@ -330,6 +430,10 @@ function disableItems {
     done< <(find "${startup_dirs[@]}" "${system_dirs[@]}" \( -iname "*$1*.plist" -o -iname "*$1*.plist.disabled" \) -print0 2>/dev/null)
 }
 
+#
+#--------------------------------------------------------------------------------------------------------------------------------------
+#
+
 if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     usage
 fi
@@ -341,22 +445,29 @@ case "$1" in
                 usage
             fi
         fi
-        listItems "$1" "$2"
+        listLaunchItems "$1" "$2"
         listKernelExtensions "$2"
         listSystemExtensions "$2"
     ;;
+
     "disable")
         if [ $# -ne 2 ]; then
             usage
         fi
-        disableItems "$2"
+        disableLaunchItems "$2"
+        disableKernelExtensions "$2"
+        disableSystemExtensions "$2"
     ;;
+
     "enable")
         if [ $# -ne 2 ]; then
             usage
         fi
-        enableItems "$2"
+        enableLaunchItems "$2"
+        enableKernelExtensions "$2"
+        enableSystemExtensions "$2"
     ;;
+
     *)
         usage
     ;;
