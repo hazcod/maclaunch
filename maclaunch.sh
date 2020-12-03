@@ -50,6 +50,82 @@ function getScriptUser {
     grep '<key>UserName</key>' -C1 "$scriptPath" | tail -n1 | cut -d '>' -f 2 | cut -d '<' -f 1
 }
 
+function getKernelExtensions {
+    kmutil showloaded --no-kernel-components --list-only --sort --show loaded 2>/dev/null | tr -s ' ' | grep -v 'com\.apple\.'
+}
+
+function listKernelExtensions {
+    local filter="$1"
+
+    getKernelExtensions | while IFS= read -r kextLine; do
+
+        kextLoaded=$(echo "$kextLine" | cut -d ' ' -f 3)
+        kextName="$(echo "$kextLine" | cut -d ' ' -f 7)"
+        kextVersion="$(echo "$kextLine" | grep -o '\((.*)\)')"
+
+        if [ "$filter" == "disabled" ] && [ "$kextLoaded" != "0" ]; then
+            continue
+        fi
+
+        if [ "$filter" == "enabled" ] && [ "$kextLoaded" == "0" ]; then
+            continue
+        fi
+
+        if [ -n "$filter" ] && [ "$filter" != "system" ] && [ "$filter" != "enabled" ] && [ "$filter" != "disabled" ]; then
+            if [[ "$kextName" != *"$filter"* ]]; then
+                continue
+            fi
+        fi
+
+        kernelPath="$(kextfind -system-extensions "$kextName" 2>/dev/null)"
+        if [ -z "$kernelPath" ]; then
+            kernelPath="n/a"
+        fi
+        
+        local loaded
+        if [ "$kextLoaded" == "0" ]; then
+            loaded="${GREEN}${BOLD}disabled${NC}"
+        else
+            loaded="${RED}Always${NC}"
+        fi
+
+        echo -e "${BOLD}> ${kextName}${NC} ${kextVersion}"
+        echo -e "  Type  : ${RED}kernel extension${NC}"
+        echo -e "  User  : ${RED}root${NC}"
+        echo -e "  Launch: ${loaded}"
+        echo    "  File  : ${kernelPath}"
+
+    done
+}
+
+function getSystemExtensions {
+    systemextensionsctl list 2>/dev/null | tail -n+2 | grep -v '^---' | grep -v '^enabled' | tr -s ' '
+}
+
+function listSystemExtensions {
+    local filter="$1"
+
+    getSystemExtensions | while IFS= read -r extLine; do
+
+        fullName="$(echo "$extLine" | cut -d$'\t' -f 4)"
+        extName="$(echo "$fullName" | cut -d ' ' -f 1)"
+        extVersion="$(echo "$fullName" | grep -o '\((.*)\)')"
+
+        local loaded
+        if [ "$(echo "$extLine" | cut -d$'\t' -f 2)" == "*" ]; then
+            loaded="${ORANGE}enabled${NC}"
+        else
+            loaded="${GREEN}disabled${NC}"
+        fi
+
+        echo -e "${BOLD}> ${extName}${NC} ${extVersion}"
+        echo -e "  Type  : system extension"
+        echo -e "  User  : $(whoami)"
+        echo -e "  Launch: ${loaded}"
+        echo    "  File  : n/a"
+    done
+}
+
 function listItems {
     local filter="$2"
 
@@ -266,6 +342,8 @@ case "$1" in
             fi
         fi
         listItems "$1" "$2"
+        listKernelExtensions "$2"
+        listSystemExtensions "$2"
     ;;
     "disable")
         if [ $# -ne 2 ]; then
