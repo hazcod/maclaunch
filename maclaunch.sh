@@ -320,7 +320,7 @@ function listLaunchItems {
                 load_items+=("${YELLOW}OnFilesystemMount")
             fi
 
-            if echo "$content" | grep -q 'StartInterval'; then
+            if echo "$content" | grep -E 'Start(Calendar)*Interval'; then
                 load_items+=("${RED}Periodically")
             fi
 
