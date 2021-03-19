@@ -461,10 +461,8 @@ fi
 
 case "$1" in
     "list")
-        if [ $# -ne 1 ]; then
-            if [ $# -ne 2 ]; then
-                usage
-            fi
+        if [ $# -ne 1 ] && [ $# -ne 2 ]; then
+            usage
         fi
 
         listCronJobs "$2"
