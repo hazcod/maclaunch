@@ -62,19 +62,16 @@ function getCronjobs {
 function listCronJobs {
     local filter="$1"
 
-    getCronjobs | while IFS= read -r extLine; do
+    getCronjobs | while IFS= read -r name; do
 
-        if [ -n "$filter" ] && ! [[ "$extName" =~ $filter ]]; then
+        if [ -n "$filter" ] && ! [[ "$name" =~ $filter ]]; then
             continue
         fi
 
-        extName="${extLine}"
-        loaded="${ORANGE}enabled${NC}"
-
-        echo -e "${BOLD}> ${extName}${NC}"
+        echo -e "${BOLD}> ${name}${NC}"
         echo -e "  Type  : cronjob"
         echo -e "  User  : $(whoami)"
-        echo -e "  Launch: ${loaded}"
+        echo -e "  Launch: ${ORANGE}enabled${NC}"
         echo    "  File  : n/a"
     done
 }
@@ -470,7 +467,7 @@ case "$1" in
             fi
         fi
 
-        listCronJobs
+        listCronJobs "$2"
         listLaunchItems "$1" "$2"
         listKernelExtensions "$2"
         listSystemExtensions "$2"
