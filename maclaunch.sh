@@ -55,6 +55,27 @@ function getKernelExtensions {
     kmutil showloaded --no-kernel-components --list-only --sort --show loaded 2>/dev/null | tr -s ' ' | grep -v 'com\.apple\.'
 }
 
+function getCronjobs {
+    crontab -l 2>/dev/null | cut -d ' ' -f 6
+}
+
+function listCronJobs {
+    local filter="$1"
+
+    getCronjobs | while IFS= read -r name; do
+
+        if [ -n "$filter" ] && ! [[ "$name" =~ $filter ]]; then
+            continue
+        fi
+
+        echo -e "${BOLD}> ${name}${NC}"
+        echo -e "  Type  : cronjob"
+        echo -e "  User  : $(whoami)"
+        echo -e "  Launch: ${ORANGE}enabled${NC}"
+        echo    "  File  : n/a"
+    done
+}
+
 function listKernelExtensions {
     local filter="$1"
 
@@ -445,6 +466,8 @@ case "$1" in
                 usage
             fi
         fi
+
+        listCronJobs "$2"
         listLaunchItems "$1" "$2"
         listKernelExtensions "$2"
         listSystemExtensions "$2"
@@ -454,6 +477,7 @@ case "$1" in
         if [ $# -ne 2 ]; then
             usage
         fi
+
         disableLaunchItems "$2"
         disableKernelExtensions "$2"
         disableSystemExtensions "$2"
@@ -463,6 +487,7 @@ case "$1" in
         if [ $# -ne 2 ]; then
             usage
         fi
+
         enableLaunchItems "$2"
         enableKernelExtensions "$2"
         enableSystemExtensions "$2"
