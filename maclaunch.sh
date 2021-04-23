@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons find emond.d/rules/)
+startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons /etc/emond.d/rules/)
 system_dirs=(/System/Library/LaunchAgents /System/Library/LaunchDaemons)
 
 RED='\033[0;31m'
