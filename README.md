@@ -42,6 +42,8 @@ It does **not** alter the contents in any way or moves the file, so it should wo
 
 The name you provide can either be specific to that service or function as a filter to work on multiple services simultaneously.
 
+It can also use the environment variable `ML_SYSTEM=no` to skip anything system-related item.
+
 ## Installation
 
 Installation can be done straight from [my Homebrew tap](https://github.com/hazcod/homebrew-hazcod) via `brew install hazcod/homebrew-hazcod/maclaunch` or just copy `maclaunch.sh` to  your filesystem.
@@ -53,6 +55,8 @@ Installation can be done straight from [my Homebrew tap](https://github.com/hazc
 To list all your services: `maclaunch list`
 
 To list all enabled services: `maclaunch list enabled`
+
+To list all enabled services, ignoring internal ones: `ML_SYSTEM=no maclaunch list enabled`
 
 To list all disabled services: `maclaunch list disabled`
 

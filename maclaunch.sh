@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+env_system_no_var="ML_SYSTEM"
 startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons /etc/emond.d/rules/)
 system_dirs=(/System/Library/LaunchAgents /System/Library/LaunchDaemons)
 
@@ -12,6 +13,10 @@ BOLD='\033[1m'
 #
 #--------------------------------------------------------------------------------------------------------------------------------------
 #
+
+function isSystemItemsDisabled() {
+    [[ "${ML_SYSTEM}" == "no" ]]
+}
 
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
@@ -79,6 +84,10 @@ function listCronJobs {
 function listPeriodic() {
     local filter="$1"
 
+    if isSystemItemsDisabled; then
+        return
+    fi
+
     find /etc/periodic -type f | while IFS= read -r name; do
         mode="daily"
         
@@ -130,6 +139,10 @@ function disablePeriodic() {
 
 function listKernelExtensions {
     local filter="$1"
+
+    if isSystemItemsDisabled; then
+        return
+    fi
 
     getKernelExtensions | while IFS= read -r kextLine; do
 
@@ -309,8 +322,10 @@ function listLaunchItems {
 
     # add system dirs too if we supplied the system parameter
     if [ "$filter" == "system" ]; then
-        itemDirectories=("${itemDirectories[@]}" "${system_dirs[@]}")
-        filter=""
+        if ! isSystemItemsDisabled; then
+            itemDirectories=("${itemDirectories[@]}" "${system_dirs[@]}")
+            filter=""
+        fi
     fi
 
     # login hooks
@@ -375,6 +390,10 @@ function listLaunchItems {
                 continue
             fi
 
+            load_items=("${GREEN}${BOLD}disabled")
+
+        # check if enabled is set to false in the plist
+        elif echo "${content}" | tr -d '\n' | tr -d '\t' | tr -d ' ' | grep -q 'enabled</key><false'; then
             load_items=("${GREEN}${BOLD}disabled")
         
         # if it's not disabled, list the startup triggers
