@@ -31,11 +31,14 @@ Take back control of your macOS system!
 
 ## How does it work?
 
-maclaunch will list 3 distinct types of entries on your macOS system that can be persistently installed:
+maclaunch will list all types of entries on your macOS system that can be persistently installed:
 
 1. Configuration files for LaunchAgents and LaunchDaemons which are loaded by launchctl.
 2. Kernel extensions loaded in the kernel.
 3. System extensions loaded in userspace.
+4. Login or Logout Hooks
+5. emon.d scripts
+6. Cron scripts
 
 When disabling an item, it uses `launchctl`, `kextutil` or `systemextensionsctl` to natively stop loading that service.
 It does **not** alter the contents in any way or moves the file, so it should work with practically any service.
