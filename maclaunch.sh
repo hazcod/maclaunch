@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-env_system_no_var="ML_SYSTEM"
 startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons /etc/emond.d/rules/)
 system_dirs=(/System/Library/LaunchAgents /System/Library/LaunchDaemons)
 
