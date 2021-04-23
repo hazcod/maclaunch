@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons)
+startup_dirs=(/Library/LaunchAgents /Library/LaunchDaemons ~/Library/LaunchAgents ~/Library/LaunchDaemons find emond.d/rules/)
 system_dirs=(/System/Library/LaunchAgents /System/Library/LaunchDaemons)
 
 RED='\033[0;31m'
@@ -73,6 +73,58 @@ function listCronJobs {
         echo -e "  User  : $(whoami)"
         echo -e "  Launch: ${ORANGE}enabled${NC}"
         echo    "  File  : n/a"
+    done
+}
+
+function listPeriodic() {
+    local filter="$1"
+
+    find /etc/periodic -type f | while IFS= read -r name; do
+        mode="daily"
+        
+        if [[ ${name} =~ /etc/periodic/weekly ]]; then
+            mode="weekly"
+        elif [[ ${name} =~ /etc/periodic/monthly ]]; then
+            mode="monthly"
+        fi
+
+        if [ -n "$filter" ] && ! [[ "$name" =~ $filter ]]; then
+            continue
+        fi
+
+        echo -e "${BOLD}> ${name}${NC}"
+        echo -e "  Type  : periodic"
+        echo -e "  User  : $(whoami)"
+        echo -e "  Launch: ${YELLOW}${mode}${NC}"
+        echo    "  File  : ${name}"
+    done
+}
+
+function enablePeriodic() {
+    local filter="$1"
+
+    find /etc/periodic -type f | while IFS= read -r name; do
+
+        if [ -n "$filter" ] && ! [[ "$name" =~ $filter ]]; then
+            continue
+        fi
+
+        echo -e "${BOLD}${YELLOW}Warning: enable individual periodic scripts in /etc/defaults/periodic.conf${NC}"
+        return
+    done
+}
+
+function disablePeriodic() {
+    local filter="$1"
+
+    find /etc/periodic -type f | while IFS= read -r name; do
+
+        if [ -n "$filter" ] && ! [[ "$name" =~ $filter ]]; then
+            continue
+        fi
+
+        echo -e "${BOLD}${YELLOW}Warning: disable individual periodic scripts in /etc/defaults/periodic.conf${NC}"
+        return
     done
 }
 
@@ -262,10 +314,19 @@ function listLaunchItems {
     fi
 
     # login hooks
-    if loginhooks=$(defaults read com.apple.loginwindow LoginHook 2>/dev/null); then
+    if loginHooks=$(defaults read com.apple.loginwindow LoginHook 2>/dev/null); then
         echo -e "${RED}${BOLD}Warning: you have Login Hooks!${NC}"
         echo -e "${RED}Remove them (with sudo) from /var/root/Library/Preferences/com.apple.loginwindow"
-        echo -e "${loginhooks}${NC}"
+        echo -e "${loginHooks}${NC}"
+        echo
+        echo
+    fi
+
+    # logout hooks
+    if logoutHooks=$(defaults read com.apple.loginwindow LogoutHook 2>/dev/null); then
+        echo -e "${RED}${BOLD}Warning: you have Login Hooks!${NC}"
+        echo -e "${RED}Remove them (with sudo) from /var/root/Library/Preferences/com.apple.loginwindow"
+        echo -e "${logoutHooks}${NC}"
         echo
         echo
     fi
@@ -469,6 +530,7 @@ case "$1" in
         listLaunchItems "$1" "$2"
         listKernelExtensions "$2"
         listSystemExtensions "$2"
+        listPeriodic "$2"
     ;;
 
     "disable")
@@ -479,6 +541,7 @@ case "$1" in
         disableLaunchItems "$2"
         disableKernelExtensions "$2"
         disableSystemExtensions "$2"
+        disablePeriodic "$2"
     ;;
 
     "enable")
@@ -489,6 +552,7 @@ case "$1" in
         enableLaunchItems "$2"
         enableKernelExtensions "$2"
         enableSystemExtensions "$2"
+        enablePeriodic "$2"
     ;;
 
     *)
