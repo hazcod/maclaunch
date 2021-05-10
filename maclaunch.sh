@@ -13,8 +13,8 @@ BOLD='\033[1m'
 #--------------------------------------------------------------------------------------------------------------------------------------
 #
 
-function isSystemItemsDisabled() {
-    [[ "${ML_SYSTEM}" == "no" ]]
+function isSystemItemsEnabled() {
+    [[ "${ML_SYSTEM}" == "1" ]]
 }
 
 function join_by { local IFS="$1"; shift; echo "$*"; }
@@ -83,7 +83,7 @@ function listCronJobs {
 function listPeriodic() {
     local filter="$1"
 
-    if isSystemItemsDisabled; then
+    if ! isSystemItemsEnabled; then
         return
     fi
 
