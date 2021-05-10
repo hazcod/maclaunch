@@ -45,7 +45,7 @@ It does **not** alter the contents in any way or moves the file, so it should wo
 
 The name you provide can either be specific to that service or function as a filter to work on multiple services simultaneously.
 
-It can also use the environment variable `ML_SYSTEM=no` to skip anything system-related item.
+By default it hides system startup items which are most likely not interesting, but you can set the environment variable `ML_SYSTEM=1` to show those.
 
 ## Installation
 
