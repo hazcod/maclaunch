@@ -139,7 +139,7 @@ function disablePeriodic() {
 function listKernelExtensions {
     local filter="$1"
 
-    if isSystemItemsDisabled; then
+    if ! isSystemItemsEnabled; then
         return
     fi
 
@@ -321,7 +321,7 @@ function listLaunchItems {
 
     # add system dirs too if we supplied the system parameter
     if [ "$filter" == "system" ]; then
-        if ! isSystemItemsDisabled; then
+        if isSystemItemsEnabled; then
             itemDirectories=("${itemDirectories[@]}" "${system_dirs[@]}")
             filter=""
         fi
