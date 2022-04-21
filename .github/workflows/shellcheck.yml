@@ -4,6 +4,9 @@ jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v1
       - name: shellcheck
