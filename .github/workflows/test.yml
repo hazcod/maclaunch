@@ -1,0 +1,16 @@
+name: test
+
+on: [pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: maclaunch
+    runs-on: macos-latest
+    steps:
+    -
+      uses: actions/checkout@v2
+    -
+      run: ./maclaunch.sh list
