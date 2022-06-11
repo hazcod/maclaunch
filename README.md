@@ -49,7 +49,7 @@ By default it hides system startup items which are most likely not interesting, 
 
 ## Installation
 
-Installation can be done straight from [my Homebrew tap](https://github.com/hazcod/homebrew-hazcod) via `brew install hazcod/homebrew-hazcod/maclaunch` or just copy `maclaunch.sh` to  your filesystem.
+Installation can be done straight from Homebrew via `brew install maclaunch` or just copy `maclaunch.sh` to  your filesystem.
 
 ## Usage
 
