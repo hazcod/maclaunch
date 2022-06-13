@@ -60,7 +60,7 @@ function getKernelExtensions {
 }
 
 function getCronjobs {
-    crontab -l 2>/dev/null | cut -d ' ' -f 6
+    crontab -l 2>/dev/null | grep -v '^#' | cut -d ' ' -f 6
 }
 
 function listCronJobs {
