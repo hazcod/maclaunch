@@ -40,19 +40,19 @@ function getScriptUser {
     local scriptPath="$1"
 
     # if it's in LaunchAgents, it's ran as the user
-    if echo "$scriptPath" | grep -q "LaunchAgent"; then
+    if echo "$scriptPath" | grep -sqi "LaunchAgent"; then
         whoami
         return
     fi
 
     # if there is no UserName key, it's ran as root
-    if ! grep -q '<key>UserName</key>' "$scriptPath"; then
+    if ! grep -sqi '<key>UserName</key>' "$scriptPath"; then
         echo "root"
         return
     fi
 
     # if UserName key is present, return the custom user
-    grep '<key>UserName</key>' -C1 "$scriptPath" | tail -n1 | cut -d '>' -f 2 | cut -d '<' -f 1
+    grep -si '<key>UserName</key>' -C1 "$scriptPath" | tail -n1 | cut -d '>' -f 2 | cut -d '<' -f 1
 }
 
 function getKernelExtensions {
@@ -311,6 +311,35 @@ function disableSystemExtensions {
     done
 }
 
+function listLoginItems {
+    local filter="$1"
+
+    runAsUser="$(whoami)"
+    
+    # for every plist found
+    while IFS= read -r -d '' plistPath; do
+
+        loginItems=$(cat "$plistPath" | grep key | cut -d '>' -f 2 | cut -d '<' -f 1)
+
+        for loginItem in ${loginItems[@]}; do
+
+            if [ -n "$filter" ] && [ "$filter" != "enabled" ] && [ "$filter" != "disabled" ]; then
+                if [[ "$loginItem" != *"$filter"* ]]; then
+                    continue
+                fi
+            fi
+        
+            echo -e "${BOLD}> ${loginItem}${NC}${startup_type}"
+            echo -e "  Type  : ${YELLOW}LoginItem${NC}"
+            echo -e "  User  : ${runAsUser}"
+            echo -e "  Launch: ?${NC}"
+            echo    "  File  : ${plistPath}"
+
+        done
+
+    done< <(find /var/db/com.apple.xpc.launchd -iname "loginitems.*.plist" -print0 2>/dev/null)
+}
+
 function listLaunchItems {
     local filter="$2"
 
@@ -545,6 +574,7 @@ case "$1" in
             usage
         fi
 
+        listLoginItems "$2"
         listCronJobs "$2"
         listLaunchItems "$1" "$2"
         listKernelExtensions "$2"
