@@ -374,8 +374,6 @@ function listLaunchItems {
 
         local load_items=()
 
-        echo "> $startup_name"
-
         # check for legacy behavior
         if [[ $f =~ \.disabled$ ]]; then
             # skip it if we only want enabled items
