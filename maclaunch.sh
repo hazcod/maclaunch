@@ -311,10 +311,16 @@ function disableSystemExtensions {
     done
 }
 
+function getDisabledLoginItems {
+    cat /var/db/com.apple.xpc.launchd/disabled.*  | grep -is '<key>' -A1 | grep -is '<true' -B1 | grep -is '<key>' | cut -d '>' -f 2 | cut -d '<' -f 1
+}
+
 function listLoginItems {
     local filter="$1"
 
     runAsUser="$(whoami)"
+
+    disabledLoginItems=$(getDisabledLoginItems)
     
     # for every plist found
     while IFS= read -r -d '' plistPath; do
@@ -328,11 +334,23 @@ function listLoginItems {
                     continue
                 fi
             fi
+
+            local launchState=""
+            for disabledLoginItem in ${disabledLoginItems[@]}; do
+                if [[ "$loginItem" == "$disabledLoginItem" ]]; then
+                    launchState="${GREEN}${BOLD}disabled"
+                    break
+                fi
+            done
+
+            if [ -z "" ]; then
+                launchState="${YELLOW}LoginItem"
+            fi
         
             echo -e "${BOLD}> ${loginItem}${NC}${startup_type}"
-            echo -e "  Type  : ${YELLOW}LoginItem${NC}"
+            echo    "  Type  : LoginItem"
             echo -e "  User  : ${runAsUser}"
-            echo -e "  Launch: ?${NC}"
+            echo -e "  Launch: ${launchState}${NC}"
             echo    "  File  : ${plistPath}"
 
         done
@@ -587,6 +605,7 @@ case "$1" in
             usage
         fi
 
+        disableLoginItems "$2"
         disableLaunchItems "$2"
         disableKernelExtensions "$2"
         disableSystemExtensions "$2"
