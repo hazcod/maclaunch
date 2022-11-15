@@ -341,6 +341,7 @@ function listLaunchItems {
         echo -e "${RED}${BOLD}Warning: you have Login Hooks!${NC}"
         echo -e "${RED}Remove them (with sudo) from /var/root/Library/Preferences/com.apple.loginwindow"
         echo -e "${logoutHooks}${NC}"
+
         echo
         echo
     fi
@@ -383,7 +384,7 @@ function listLaunchItems {
             load_items=("${GREEN}${BOLD}disabled${NC}${YELLOW} (legacy)")
 
         # check if it's disabled natively via launchctl
-        elif echo "$disabled_services" | grep -iF "$startup_name" | grep -qi true; then
+        elif echo "$disabled_services" | grep -iF "$startup_name" | grep -Eqi '(true|disabled)'; then
             # skip it if we only want enabled items
             if [ -n "$filter" ] && [ "$filter" == "enabled" ]; then
                 continue
