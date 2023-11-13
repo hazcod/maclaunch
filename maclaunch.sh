@@ -71,9 +71,6 @@ function getCronjobs {
     done <<<"$(crontab -l 2>/dev/null | grep -v '^#' | grep -vE '^\n')"
 }
 
-getCronjobs
-exit 1
-
 function listCronJobs {
     local filter="$1"
 
