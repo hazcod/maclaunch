@@ -61,6 +61,10 @@ function getKernelExtensions {
 
 function getCronjobs {
     while IFS= read -r cron; do
+        if [ -z "$cron" ]; then
+            continue
+        fi
+
         if echo "$cron" | cut -d ' ' -f 1 | grep -q '@'; then
             # @reboot notation
             echo "$cron" | cut -d ' ' -f 2
@@ -84,7 +88,7 @@ function listCronJobs {
         echo -e "  Type  : cronjob"
         echo -e "  User  : $(whoami)"
         echo -e "  Launch: ${ORANGE}enabled${NC}"
-        echo    "  File  : n/a"
+        echo    "  File  : ${name}"
     done
 }
 
