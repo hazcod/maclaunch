@@ -60,8 +60,19 @@ function getKernelExtensions {
 }
 
 function getCronjobs {
-    crontab -l 2>/dev/null | grep -v '^#' | cut -d ' ' -f 6
+    while IFS= read -r cron; do
+        if echo "$cron" | cut -d ' ' -f 1 | grep -q '@'; then
+            # @reboot notation
+            echo "$cron" | cut -d ' ' -f 2
+        else
+            # * * * * * notation
+            echo "$cron" | cut -d ' ' -f 6
+        fi
+    done <<<"$(crontab -l 2>/dev/null | grep -v '^#' | grep -vE '^\n')"
 }
+
+getCronjobs
+exit 1
 
 function listCronJobs {
     local filter="$1"
